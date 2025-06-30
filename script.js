@@ -1,11 +1,19 @@
-let generations = JSON.parse(localStorage.getItem("generations") || "[]");
-let members = JSON.parse(localStorage.getItem("members") || "[]");
-let editIndex = null; // Biến toàn cục lưu vị trí member đang sửa
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyBoG8vZpGLbZpBz70sXnyt51brXV1FRckk",
+  authDomain: "karatedo-pnt.firebaseapp.com",
+  projectId: "karatedo-pnt",
+  storageBucket: "karatedo-pnt.firebasestorage.app",
+  messagingSenderId: "360011050214",
+  appId: "1:360011050214:web:57ac58264bc0e85b039f27",
+  measurementId: "G-X74TK4KJGB"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-function saveData() {
-    localStorage.setItem("generations", JSON.stringify(generations));
-    localStorage.setItem("members", JSON.stringify(members));
-}
+let generations = [];
+let members = [];
+let editIndex = null; // Lưu vị trí member đang sửa
 
 function renderGenerations() {
     generations.sort((a, b) => {
@@ -126,7 +134,7 @@ function openEditModal(member) {
     form.generation.value = (member.gen || "").replace(/\D/g, "");
     form.belt.value = member.belt;
     showModal("addModal");
-    editIndex = members.findIndex(m => m === member);
+    editIndex = members.findIndex(m => m.id === member.id);
 }
 
 // Resize ảnh trước khi lưu (giảm quota)
@@ -153,6 +161,37 @@ function resizeImage(base64, maxWidth, maxHeight, callback) {
     img.src = base64;
 }
 
+// Đọc danh sách từ Firestore
+function loadMembersFromFirestore(callback) {
+    db.collection("members").get().then(snapshot => {
+        members = [];
+        generations = [];
+        snapshot.forEach(doc => {
+            let data = doc.data();
+            data.id = doc.id;
+            members.push(data);
+            if (data.gen && !generations.includes(data.gen)) generations.push(data.gen);
+        });
+        callback();
+    });
+}
+
+// Thêm/sửa thành viên lên Firestore
+function saveMemberToFirestore(memberData, callback) {
+    if (editIndex !== null && members[editIndex].id) {
+        // Sửa
+        db.collection("members").doc(members[editIndex].id).set(memberData).then(() => {
+            callback();
+        });
+    } else {
+        // Thêm mới
+        db.collection("members").add(memberData).then(docRef => {
+            memberData.id = docRef.id;
+            callback();
+        });
+    }
+}
+
 // Thêm/sửa thành viên
 document.getElementById("addForm").onsubmit = function(e) {
     e.preventDefault();
@@ -172,7 +211,6 @@ document.getElementById("addForm").onsubmit = function(e) {
     }
 
     const genName = "Thế hệ " + genNum;
-    if (!generations.includes(genName)) generations.push(genName);
 
     const fileInput = document.getElementById("imageInput");
     const file = fileInput.files[0];
@@ -188,21 +226,16 @@ document.getElementById("addForm").onsubmit = function(e) {
             belt: data.get("belt")
         };
 
-        if (editIndex !== null) {
-            members[editIndex] = memberData;
-            saveData();
-            renderGenerations();
-            hideModal("addModal");
-            showDetails(memberData);
-            editIndex = null;
-        } else {
-            members.push(memberData);
-            saveData();
-            renderGenerations();
-            hideModal("addModal");
-        }
-        e.target.reset();
-        document.getElementById("imageInput").value = ""; // Reset input file
+        saveMemberToFirestore(memberData, function() {
+            loadMembersFromFirestore(function() {
+                renderGenerations();
+                hideModal("addModal");
+                if (editIndex !== null) showDetails(memberData);
+                editIndex = null;
+                document.getElementById("addForm").reset();
+                document.getElementById("imageInput").value = "";
+            });
+        });
     }
 
     if (file) {
@@ -235,15 +268,18 @@ document.querySelectorAll('.modal').forEach(modal => {
     });
 });
 
-// Clear all data
+// Xóa tất cả dữ liệu Firestore
 document.getElementById("clearBtn").onclick = () => {
     if (confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu?")) {
-        localStorage.clear();
-        location.reload();
+        db.collection("members").get().then(snapshot => {
+            let batch = db.batch();
+            snapshot.forEach(doc => batch.delete(doc.ref));
+            batch.commit().then(() => location.reload());
+        });
     }
 };
 
 // Hiển thị các thế hệ và thành viên khi load lại trang
 window.onload = function() {
-    renderGenerations();
+    loadMembersFromFirestore(renderGenerations);
 };
