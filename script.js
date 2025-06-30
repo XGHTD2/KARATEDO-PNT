@@ -1,4 +1,3 @@
-// Fir// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBoG8vZpGLbZpBz70sXnyt51brXV1FRckk",
   authDomain: "karatedo-pnt.firebaseapp.com",
@@ -11,9 +10,61 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// Thay UID này bằng UID admin của bạn (lấy trong Firebase Authentication > Users)
+const adminUID = "THAY_UID_ADMIN_VAO_DAY";
+
 let generations = [];
 let members = [];
-let editIndex = null; // Lưu vị trí member đang sửa
+let editIndex = null;
+let currentMemberId = null;
+let isAdmin = false;
+
+// Đăng nhập/đăng xuất Google
+firebase.auth().onAuthStateChanged(function(user) {
+    isAdmin = (user && user.uid === adminUID);
+    document.getElementById("loginBtn").style.display = isAdmin ? "none" : "inline";
+    document.getElementById("logoutBtn").style.display = isAdmin ? "inline" : "none";
+    document.getElementById("deleteBtn").style.display = isAdmin ? "block" : "none";
+    document.getElementById("pendingWrap").style.display = isAdmin ? "block" : "none";
+    loadMembersFromFirestore(renderGenerations);
+    if (isAdmin) loadPending();
+});
+document.getElementById("loginBtn").onclick = function() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider);
+};
+document.getElementById("logoutBtn").onclick = function() {
+    firebase.auth().signOut();
+};
+
+// Hiển thị danh sách chờ phê duyệt cho admin
+function loadPending() {
+    const wrap = document.getElementById("pendingList");
+    wrap.innerHTML = "Đang tải...";
+    db.collection("pending_members").get().then(snapshot => {
+        wrap.innerHTML = "";
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const div = document.createElement("div");
+            div.className = "pending-card";
+            div.innerHTML = `
+                <b>${data.name}</b> - ${data.gender} - ${data.dob} - ${data.join} - ${data.belt} - ${data.gen}
+                <button class="approveBtn">Phê duyệt</button>
+                <button class="rejectBtn" style="background:#e74c3c;">Từ chối</button>
+            `;
+            div.querySelector(".approveBtn").onclick = function() {
+                db.collection("members").add(data).then(() => {
+                    db.collection("pending_members").doc(doc.id).delete().then(loadPending);
+                });
+            };
+            div.querySelector(".rejectBtn").onclick = function() {
+                db.collection("pending_members").doc(doc.id).delete().then(loadPending);
+            };
+            wrap.appendChild(div);
+        });
+        if (!wrap.innerHTML) wrap.innerHTML = "<i>Không có yêu cầu nào.</i>";
+    });
+}
 
 function renderGenerations() {
     generations.sort((a, b) => {
@@ -67,7 +118,6 @@ function renderGenerations() {
     });
 }
 
-// Format date from ISO or yyyy-mm-dd to dd/mm/yyyy (không dùng new Date để tránh lệch ngày)
 function formatDate(str) {
     if (!str) return "";
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) return str;
@@ -77,16 +127,12 @@ function formatDate(str) {
     }
     return str;
 }
-
-// Chuyển dd/mm/yyyy thành yyyy-mm-dd để lưu
 function parseDate(str) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
     const [d, m, y] = str.split('/');
     if (!d || !m || !y) return "";
     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
-
-// Hiệu ứng mở/đóng modal
 function showModal(id) {
     const modal = document.getElementById(id);
     modal.classList.add('show');
@@ -97,9 +143,8 @@ function hideModal(id) {
     modal.classList.add('hide');
     modal.classList.remove('show');
 }
-
-// Show member details in modal
 function showDetails(member) {
+    currentMemberId = member.id;
     document.getElementById("modalName").textContent = member.name;
     document.getElementById("modalGender").textContent = member.gender;
     document.getElementById("modalDOB").textContent = formatDate(member.dob);
@@ -115,29 +160,20 @@ function showDetails(member) {
     document.getElementById("editBtn").onclick = function() {
         openEditModal(member);
     };
+    document.getElementById("deleteBtn").style.display = isAdmin ? "block" : "none";
     showModal("detailModal");
 }
-
-// Close modal by id
-function closeModal(id) {
-    hideModal(id);
-}
-
-// Mở modal chỉnh sửa, điền sẵn dữ liệu
 function openEditModal(member) {
     const form = document.getElementById("addForm");
     form.name.value = member.name;
     form.dob.value = formatDate(member.dob);
     form.gender.value = member.gender;
     form.join.value = formatDate(member.join);
-    // Không set form.image.value vì là input file
     form.generation.value = (member.gen || "").replace(/\D/g, "");
     form.belt.value = member.belt;
     showModal("addModal");
     editIndex = members.findIndex(m => m.id === member.id);
 }
-
-// Resize ảnh trước khi lưu (giảm quota)
 function resizeImage(base64, maxWidth, maxHeight, callback) {
     const img = new Image();
     img.onload = function() {
@@ -156,12 +192,10 @@ function resizeImage(base64, maxWidth, maxHeight, callback) {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
-        callback(canvas.toDataURL('image/jpeg', 0.7)); // nén jpeg chất lượng 70%
+        callback(canvas.toDataURL('image/jpeg', 0.7));
     };
     img.src = base64;
 }
-
-// Đọc danh sách từ Firestore
 function loadMembersFromFirestore(callback) {
     db.collection("members").get().then(snapshot => {
         members = [];
@@ -175,24 +209,26 @@ function loadMembersFromFirestore(callback) {
         callback();
     });
 }
-
-// Thêm/sửa thành viên lên Firestore
 function saveMemberToFirestore(memberData, callback) {
     if (editIndex !== null && members[editIndex].id) {
-        // Sửa
         db.collection("members").doc(members[editIndex].id).set(memberData).then(() => {
             callback(members[editIndex].id);
         });
     } else {
-        // Thêm mới
         db.collection("members").add(memberData).then(docRef => {
             memberData.id = docRef.id;
             callback(docRef.id);
         });
     }
 }
-
-// Thêm/sửa thành viên
+document.getElementById("deleteBtn").onclick = function() {
+    if (isAdmin && confirm("Bạn có chắc chắn muốn xóa võ sinh này?")) {
+        db.collection("members").doc(currentMemberId).delete().then(() => {
+            loadMembersFromFirestore(renderGenerations);
+            hideModal("detailModal");
+        });
+    }
+};
 document.getElementById("addForm").onsubmit = function(e) {
     e.preventDefault();
     const data = new FormData(e.target);
@@ -211,7 +247,6 @@ document.getElementById("addForm").onsubmit = function(e) {
     }
 
     const genName = "Thế hệ " + genNum;
-
     const fileInput = document.getElementById("imageInput");
     const file = fileInput.files[0];
 
@@ -226,30 +261,37 @@ document.getElementById("addForm").onsubmit = function(e) {
             belt: data.get("belt")
         };
 
-        saveMemberToFirestore(memberData, function(updatedId) {
-            loadMembersFromFirestore(function() {
-                renderGenerations();
+        if (isAdmin) {
+            saveMemberToFirestore(memberData, function(updatedId) {
+                loadMembersFromFirestore(function() {
+                    renderGenerations();
+                    hideModal("addModal");
+                    if (editIndex !== null) {
+                        const updated = members.find(m => m.id === updatedId);
+                        if (updated) showDetails(updated);
+                    }
+                    editIndex = null;
+                    document.getElementById("addForm").reset();
+                    document.getElementById("imageInput").value = "";
+                });
+            });
+        } else {
+            db.collection("pending_members").add(memberData).then(() => {
+                alert("Thông tin của bạn đang chờ phê duyệt!");
                 hideModal("addModal");
-                if (editIndex !== null) {
-                    // Tìm lại member vừa sửa theo id để show đúng thông tin mới nhất
-                    const updated = members.find(m => m.id === updatedId);
-                    if (updated) showDetails(updated);
-                }
-                editIndex = null;
                 document.getElementById("addForm").reset();
                 document.getElementById("imageInput").value = "";
             });
-        });
+        }
     }
 
     if (file) {
         const reader = new FileReader();
         reader.onload = function(evt) {
-            resizeImage(evt.target.result, 300, 400, saveMember); // Resize về 300x400px
+            resizeImage(evt.target.result, 300, 400, saveMember);
         };
         reader.readAsDataURL(file);
     } else {
-        // Nếu không chọn file, giữ ảnh cũ khi sửa hoặc để trống khi thêm mới
         if (editIndex !== null && members[editIndex].image) {
             saveMember(members[editIndex].image);
         } else {
@@ -257,33 +299,16 @@ document.getElementById("addForm").onsubmit = function(e) {
         }
     }
 };
-
-// Open add member modal (reset editIndex)
 document.getElementById("addMemberBtn").onclick = () => {
     editIndex = null;
     document.getElementById("addForm").reset();
     showModal("addModal");
 };
-
-// Đóng modal khi click ra ngoài
 document.querySelectorAll('.modal').forEach(modal => {
     modal.addEventListener('click', function(e) {
         if (e.target === modal) hideModal(modal.id);
     });
 });
-
-// Xóa tất cả dữ liệu Firestore
-document.getElementById("clearBtn").onclick = () => {
-    if (confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu?")) {
-        db.collection("members").get().then(snapshot => {
-            let batch = db.batch();
-            snapshot.forEach(doc => batch.delete(doc.ref));
-            batch.commit().then(() => location.reload());
-        });
-    }
-};
-
-// Hiển thị các thế hệ và thành viên khi load lại trang
 window.onload = function() {
     loadMembersFromFirestore(renderGenerations);
 };

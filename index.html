@@ -8,16 +8,18 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 </head>
 <body>
     <header>
         <h1>CLB Nghĩa Dũng Karatedo PNT</h1>
+        <button id="loginBtn">Đăng nhập quản trị</button>
+        <button id="logoutBtn" style="display:none;">Đăng xuất</button>
     </header>
 
     <main id="mainContent"></main>
 
     <button id="addMemberBtn" class="add-member-button" title="Thêm thành viên">+</button>
-    <button id="clearBtn" class="clear-button" title="Xóa tất cả dữ liệu">Clear</button>
 
     <!-- Modal hiển thị chi tiết -->
     <div class="modal" id="detailModal">
@@ -31,6 +33,7 @@
                     <p style="margin: 10px 0;"><strong>Ngày gia nhập:</strong> <span id="modalJoin"></span></p>
                     <p style="margin: 10px 0;"><strong>Cấp bậc:</strong> <span id="modalBelt"></span></p>
                     <button id="editBtn" type="button" style="margin-top:18px;">Chỉnh sửa</button>
+                    <button id="deleteBtn" type="button" style="margin-top:10px; background:#e74c3c;">Xóa</button>
                 </div>
                 <div id="modalAvatarWrap" style="flex-shrink:0; display: flex; align-items: flex-start;">
                     <img id="modalAvatar" src="" alt="avatar">
@@ -66,6 +69,13 @@
             </form>
         </div>
     </div>
+
+    <!-- Danh sách chờ phê duyệt (chỉ hiện với admin) -->
+    <div id="pendingWrap" style="display:none; margin: 32px;">
+        <h2>Yêu cầu chờ phê duyệt</h2>
+        <div id="pendingList"></div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
