@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CLB Karatedo Nghĩa Dũng</title>
     <link rel="stylesheet" href="style.css" />
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <header>
@@ -13,7 +16,6 @@
 
     <main id="mainContent"></main>
 
-    <!-- Nút thêm và xoá dữ liệu -->
     <button id="addMemberBtn" class="add-member-button" title="Thêm thành viên">+</button>
     <button id="clearBtn" class="clear-button" title="Xóa tất cả dữ liệu">Clear</button>
 
@@ -26,7 +28,7 @@
                     <h3 id="modalName" style="margin-bottom: 18px;"></h3>
                     <p style="margin: 10px 0;"><strong>Giới tính:</strong> <span id="modalGender"></span></p>
                     <p style="margin: 10px 0;"><strong>Ngày sinh:</strong> <span id="modalDOB"></span></p>
-                    <p style="margin: 10px 0;"><strong>Ngày nhập môn:</strong> <span id="modalJoin"></span></p>
+                    <p style="margin: 10px 0;"><strong>Ngày gia nhập:</strong> <span id="modalJoin"></span></p>
                     <p style="margin: 10px 0;"><strong>Cấp bậc:</strong> <span id="modalBelt"></span></p>
                     <button id="editBtn" type="button" style="margin-top:18px;">Chỉnh sửa</button>
                 </div>
