@@ -13,18 +13,41 @@
 <body>
     <header>
         <h1>CLB Nghĩa Dũng Karatedo PNT</h1>
-        <button id="loginBtn">Đăng nhập quản trị</button>
+        <button id="googleSignInBtn">Đăng nhập Google</button>
         <button id="logoutBtn" style="display:none;">Đăng xuất</button>
     </header>
-
     <main id="mainContent"></main>
-
     <button id="addMemberBtn" class="add-member-button" title="Thêm thành viên">+</button>
 
-    <!-- Modal hiển thị chi tiết -->
+    <!-- Đăng nhập/Đăng ký/Chi tiết/Thêm sửa thành viên/Pending giữ nguyên -->
+    <!-- Đăng nhập -->
+    <div class="modal" id="signInModal">
+        <div class="modal-content">
+            <span class="close" onclick="hideModal('signInModal')">&times;</span>
+            <h3>Đăng nhập</h3>
+            <form id="signInForm">
+                <input type="email" id="signInEmail" placeholder="Email" required>
+                <input type="password" id="signInPassword" placeholder="Mật khẩu" required>
+                <button type="submit">Đăng nhập</button>
+            </form>
+        </div>
+    </div>
+    <!-- Đăng ký -->
+    <div class="modal" id="signUpModal">
+        <div class="modal-content">
+            <span class="close" onclick="hideModal('signUpModal')">&times;</span>
+            <h3>Đăng ký tài khoản mới</h3>
+            <form id="signUpForm">
+                <input type="email" id="signUpEmail" placeholder="Email" required>
+                <input type="password" id="signUpPassword" placeholder="Mật khẩu" required>
+                <button type="submit">Đăng ký</button>
+            </form>
+        </div>
+    </div>
+    <!-- Chi tiết thành viên -->
     <div class="modal" id="detailModal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal('detailModal')">&times;</span>
+            <span class="close" data-close="detailModal">&times;</span>
             <div style="display: flex; align-items: flex-start; gap: 32px;">
                 <div style="flex:1; display: flex; flex-direction: column; justify-content: center;">
                     <h3 id="modalName" style="margin-bottom: 18px;"></h3>
@@ -41,11 +64,10 @@
             </div>
         </div>
     </div>
-
-    <!-- Modal thêm/sửa thành viên -->
+    <!-- Thêm/sửa thành viên -->
     <div class="modal" id="addModal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal('addModal')">&times;</span>
+            <span class="close" data-close="addModal">&times;</span>
             <h3>Thêm thành viên mới</h3>
             <form id="addForm">
                 <input type="text" placeholder="Tên võ sinh" required name="name" />
@@ -58,7 +80,7 @@
                 <input type="text" required name="join" placeholder="Ngày gia nhập (dd/mm/yyyy)" pattern="\d{2}/\d{2}/\d{4}" />
                 <input type="file" name="image" accept="image/*" id="imageInput" />
                 <input type="number" name="generation" placeholder="Nhập số thế hệ (ví dụ: 1, 2, 3...)" required min="1" />
-                <select name="belt" required>
+                <select name="belt" required></select>
                     <option value="">Chọn màu đai</option>
                     <option value="trang">Trắng</option>
                     <option value="vang">Vàng</option>
@@ -69,13 +91,26 @@
             </form>
         </div>
     </div>
-
-    <!-- Danh sách chờ phê duyệt (chỉ hiện với admin) -->
+    <!-- Danh sách chờ phê duyệt (admin) -->
     <div id="pendingWrap" style="display:none; margin: 32px;">
         <h2>Yêu cầu chờ phê duyệt</h2>
         <div id="pendingList"></div>
     </div>
-
+    <script>
+    // Đóng modal khi click vào dấu X
+    document.querySelectorAll('.close').forEach(btn => {
+        btn.onclick = function() {
+            const modalId = btn.getAttribute('data-close');
+            if (modalId) document.getElementById(modalId).style.display = 'none';
+        };
+    });
+    // Đóng modal khi click ngoài nội dung
+    window.onclick = function(event) {
+        document.querySelectorAll('.modal').forEach(modal => {
+            if (event.target === modal) modal.style.display = 'none';
+        });
+    };
+    </script>
     <script src="script.js"></script>
 </body>
 </html>
