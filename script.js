@@ -1,4 +1,4 @@
-// Firebase config
+// Fir// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBoG8vZpGLbZpBz70sXnyt51brXV1FRckk",
   authDomain: "karatedo-pnt.firebaseapp.com",
@@ -181,13 +181,13 @@ function saveMemberToFirestore(memberData, callback) {
     if (editIndex !== null && members[editIndex].id) {
         // Sửa
         db.collection("members").doc(members[editIndex].id).set(memberData).then(() => {
-            callback();
+            callback(members[editIndex].id);
         });
     } else {
         // Thêm mới
         db.collection("members").add(memberData).then(docRef => {
             memberData.id = docRef.id;
-            callback();
+            callback(docRef.id);
         });
     }
 }
@@ -226,11 +226,15 @@ document.getElementById("addForm").onsubmit = function(e) {
             belt: data.get("belt")
         };
 
-        saveMemberToFirestore(memberData, function() {
+        saveMemberToFirestore(memberData, function(updatedId) {
             loadMembersFromFirestore(function() {
                 renderGenerations();
                 hideModal("addModal");
-                if (editIndex !== null) showDetails(memberData);
+                if (editIndex !== null) {
+                    // Tìm lại member vừa sửa theo id để show đúng thông tin mới nhất
+                    const updated = members.find(m => m.id === updatedId);
+                    if (updated) showDetails(updated);
+                }
                 editIndex = null;
                 document.getElementById("addForm").reset();
                 document.getElementById("imageInput").value = "";
